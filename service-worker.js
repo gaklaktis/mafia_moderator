@@ -3,7 +3,7 @@ self.addEventListener('install', e => {
     caches.open('mafia-cache').then(cache => {
       return cache.addAll([
         '/',
-        '/index.html',
+        '/index_partial.html',
         '/beep.mp3',
         '/xlsx.full.min.js',
         '/icon-192.png',
