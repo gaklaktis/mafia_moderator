@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
+  <title>Мафия — Таблица</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js');
+      });
+    }
+
+    // Блокировка свайпа вниз на смартфонах
+    window.addEventListener("touchstart", function (e) {
+      if (e.touches.length !== 1) return;
+      const startY = e.touches[0].clientY;
+      const startScroll = document.scrollingElement.scrollTop;
+      function onTouchMove(ev) {
+        const dy = ev.touches[0].clientY - startY;
+        if (startScroll === 0 && dy > 0) {
+          ev.preventDefault();
+        }
+      }
+      window.addEventListener("touchmove", onTouchMove, { passive: false, once: true });
+    });
+  </script>
+  <script src="xlsx.full.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 10px; background: white; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    td, th { border: 1px solid #ccc; padding: 6px; text-align: center; min-width: 44px; }
+    .cell { cursor: pointer; }
+    .red { background: #f88 !important; }
+    .green { background: #8f8 !important; }
+    .purple { background: #d8b6ff !important; }
+    .pink { background: #ffc0cb !important; }
+    .gradient-pink-purple { background: linear-gradient(45deg, #ffc0cb 50%, #d8b6ff 50%); }
+    .gradient-pink-green { background: linear-gradient(45deg, #ffc0cb 50%, #8f8 50%); }
+    .gradient-pink-red { background: linear-gradient(45deg, #ffc0cb 50%, #f88 50%); }
+    .num-red { background: #f55 !important; color: white; font-weight: bold; }
+    .hidden-role { display: none; }
+    .role-toggle { cursor: pointer; text-decoration: underline; margin-right: 10px; }
+    #selectedPlayer {
+      font-size: 420px;
+      text-align: center;
+      margin-top: 400px;
+      font-weight: bold;
+      color: red;
+      padding-bottom: 350px;
+    }
+    #loadFile { display: none; }
+    label[for="loadFile"] {
+      background-color: #eee;
+      border: 1px solid #ccc;
+      padding: 6px 12px;
+      cursor: pointer;
+      user-select: none;
+      margin-left: 10px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    label[for="loadFile"]:hover { background-color: #ddd; }
+
+    #extraTable td {
+      border: 1px solid #ccc;
+      min-width: 23px;
+      width: 23px;
+      height: 25px;
+      font-size: 16px;
+      padding: 3px;
+    }
+  </style>
+</head>
+<body>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  Telegram.WebApp.ready();
+
+  // Получаем user_id из Telegram WebApp
+  const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+
+  if (!userId) {
+    document.body.innerHTML = "<h3>⛔ Ошибка: не удалось получить Telegram ID. Пожалуйста, перезапустите через Telegram.</h3>";
+  } else {
+    // Перенаправляем на тот же адрес с параметром ?id=...
+    const currentUrl = new URL(window.location.href);
+    if (!currentUrl.searchParams.has("id")) {
+      currentUrl.searchParams.set("id", userId);
+      window.location.href = currentUrl.toString();
+    }
+  }
+</script>
+<h3>Таблица действий \\ created by @Altimak</h3>
+
+<div style="background: #f0f0f0; padding: 18px; margin-bottom: 18px;">
+  <b>Подсказка по ролям:</b><br>
+  <span class="role-toggle" data-role="П">П — путана</span>
+  <span class="role-toggle" data-role="Л">Л — любовница</span>
+  <span class="role-toggle" data-role="Х">Х — мафия</span>
+  <span class="role-toggle" data-role="Хд">Хд — дон</span>
+  <span class="role-toggle" data-role="В">В — доктор</span>
+  <span class="role-toggle" data-role="Ш">Ш — шериф</span>
+  <span class="role-toggle" data-role="М">М — маньяк</span>
+  <span class="role-toggle" data-role="К">К — камикадзе</span>
+  <span class="role-toggle" data-role="С">С — мститель</span>
+  <span class="role-toggle" data-role="С">О — любая роль</span>
+  <span class="role-toggle" data-role="ХХХ">ХХХ — внезапная смерть</span>
+  <button onclick="showAllRoles()" style="margin-left: 24px;">👁️ Показать всё</button>
+</div>
+
+<div>
+  <button onclick="exportData(true)">💾 Сохранить</button>
+  <label for="loadFile">📂 Загрузить</label>
+  <input type="file" id="loadFile" accept=".json" />
+  <button onclick="resetTable()">♻️ Сброс</button>
+  <button onclick="exportToExcel()">📤 В Excel</button>
+</div>
+
+<table id="mafiaTable">
+  <thead>
+    <tr id="headerRow"><th>#</th><th>Роль</th></tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
+
+<!-- Вторая таблица -->
+<table id="extraTable">
+  <tbody></tbody>
+</table>
+
+<div style="margin: 14px 0; padding: 14px; background: #f9f9f9; border: 1px solid #ccc; font-size: 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+  ⏱️ Таймер:
+  <input type="number" id="timeInput" min="5" max="120" step="5" value="50" style="font-size: 20px; width: 80px; padding: 4px;"> сек
+  <button onclick="startTimer()" style="font-size: 16px; padding: 6px 10px;">▶️ Пуск</button>
+  <button onclick="resetTimer()" style="font-size: 16px; padding: 6px 10px;">🔁 Сброс</button>
+  <span id="timerDisplay" style="font-weight: bold; font-size: 22px;">50 сек.</span>
+</div>
+
+<audio id="beepSound" src="beep2.mp3" preload="auto"></audio>
+<audio id="beep10Sound" src="beep1.mp3" preload="auto"></audio>
+
+<script>
+let timerValue = 50;
+let countdown = null;
+let remainingTime = timerValue;
+
+const timeInput = document.getElementById("timeInput");
+const display = document.getElementById("timerDisplay");
+const beep = document.getElementById("beepSound");
+const beep10 = document.getElementById("beep10Sound");
+
+document.addEventListener("click", () => {
+  beep.play().catch(() => {});
+  beep.pause(); beep.currentTime = 0;
+
+  beep10.play().catch(() => {});
+  beep10.pause(); beep10.currentTime = 0;
+}, { once: true });
+
+function updateDisplay() {
+  display.textContent = `${remainingTime} сек.`;
+}
+
+function startTimer() {
+  clearInterval(countdown);
+
+  timerValue = parseInt(timeInput.value) || 50;
+  remainingTime = timerValue;
+  updateDisplay();
+
+  countdown = setInterval(() => {
+    remainingTime--;
+    updateDisplay();
+
+    if (remainingTime === 10) {
+      beep10.play().catch(err => console.warn("Can't play beep10:", err));
+    }
+
+    if (remainingTime <= 0) {
+      clearInterval(countdown);
+      beep.play().catch(err => console.warn("Can't play beep:", err));
+    }
+  }, 1000);
+}
+
+function resetTimer() {
+  clearInterval(countdown);
+  remainingTime = parseInt(timeInput.value) || 50;
+  updateDisplay();
+}
+</script>
+
+<div id="selectedPlayer"></div>
+
+<script>
+let playerCount = 10;
+let nightCount = 8;
+const hiddenRoles = new Set();
+
+const headerRow = document.getElementById("headerRow");
+const tableBody = document.getElementById("tableBody");
+
+const roleOptions = ["", "П", "Л", "Х", "Хд", "В", "Ш", "М", "К", "С", "О",];
+function renderNightHeaders() {
+  while (headerRow.children.length > 2) headerRow.removeChild(headerRow.lastChild);
+  for (let n = 1; n <= nightCount; n++) {
+    const th = document.createElement("th");
+    th.textContent = `Ночь ${n}`;
+    th.ondblclick = () => {
+      nightCount++;
+      renderNightHeaders();
+      tableBody.querySelectorAll("tr").forEach(row => {
+        const cell = document.createElement("td");
+        cell.className = "cell";
+        row.appendChild(cell);
+      });
+    };
+    headerRow.appendChild(th);
+  }
+}
+
+function getCellClass(text) {
+  const parts = text.toUpperCase().split("\\").map(p => p.trim());
+  const cleanParts = parts.map(p => p.replace("?", "")); // убираем ? для анализа
+  const has = r => cleanParts.includes(r);
+  if (has("ХХХ")) return "red";
+  if (has("П") && has("Л")) return "gradient-pink-purple";
+  if (has("П") && has("В")) return "gradient-pink-green";
+  if (has("П") && (has("Х") || has("М"))) return "gradient-pink-red";
+  if (has("Л")) return "purple";
+  if (has("В")) return "green";
+  if (has("Х") || has("М")) return "red";
+  if (has("П")) return "pink";
+  return "";
+}
+
+function resetColorClasses(cell) {
+  cell.classList.remove("red", "green", "purple", "pink",
+    "gradient-pink-purple", "gradient-pink-green", "gradient-pink-red");
+}
+
+function updateRowColors(row) {
+  const cells = [...row.querySelectorAll(".cell")];
+  for (let i = 1; i < cells.length; i++) {
+    const current = cells[i];
+    const prev = cells[i - 1];
+
+    ["В", "Л", "П"].forEach(char => {
+      const currentParts = current.textContent.split("\\").map(p => p.trim());
+      const prevParts = prev.textContent.split("\\").map(p => p.trim());
+
+      if (currentParts.includes(char) && prevParts.includes(char)) {
+        // Удалить старую "?" если была
+        currentParts.forEach((part, idx) => {
+          if (part === `${char}?`) currentParts[idx] = char;
+        });
+        // Заменить на "?" если ещё не заменено
+        const index = currentParts.indexOf(char);
+        if (index !== -1) currentParts[index] = `${char}?`;
+
+        current.textContent = currentParts.join("\\");
+      }
+    });
+  }
+  
+  const numCell = row.querySelector("td");
+  numCell.classList.remove("num-red");
+  cells.forEach(c => c.classList.remove("red"));
+
+  for (let i = 0; i < cells.length; i++) {
+    const val = cells[i].textContent.toUpperCase();
+    const parts = val.split("\\").map(p => p.trim());
+    const hasKill = parts.some(p => p === "Х" || p === "М");
+    const hasCancel = parts.some(p => p === "Л" || p === "В" || p === "Л?" || p === "В?");
+    const hasXXX = parts.includes("ХХХ");
+
+    if (hasXXX || (hasKill && !hasCancel)) {
+      numCell.classList.add("num-red");
+      resetColorClasses(cells[i]);
+      const style = getCellClass(val);
+      if (style) cells[i].classList.add(style);
+      return;
+    }
+  }
+}
+
+function addPlayerRow(num = tableBody.children.length + 1) {
+  const row = document.createElement("tr");
+
+  const numCell = document.createElement("td");
+  numCell.className = "number-cell";
+  numCell.textContent = num;
+  numCell.ondblclick = () => addPlayerRow();
+  numCell.onclick = () => {
+    document.getElementById("selectedPlayer").textContent = num;
+  };
+  row.appendChild(numCell);
+
+  const roleCell = document.createElement("td");
+  const select = document.createElement("select");
+  roleOptions.forEach(opt => {
+    const o = document.createElement("option");
+    o.value = opt;
+    o.textContent = opt;
+    select.appendChild(o);
+  });
+    select.addEventListener("change", () => {
+    saveToLocalStorage();
+  });
+	select.addEventListener("change", () => {
+  saveToLocalStorage();
+  if (select.value === "Л") {
+    roleCell.classList.add("purple");
+  } else {
+    roleCell.classList.remove("purple");
+  }
+});  
+  roleCell.appendChild(select);
+  row.appendChild(roleCell);
+
+  for (let i = 0; i < nightCount; i++) {
+    const cell = document.createElement("td");
+    cell.className = "cell";
+    row.appendChild(cell);
+  }
+
+  tableBody.appendChild(row);
+}
+
+function createTable(count) {
+  tableBody.innerHTML = "";
+  for (let i = 1; i <= count; i++) addPlayerRow(i);
+}
+
+renderNightHeaders();
+createTable(playerCount);
+
+// Вторая таблица: 6 строк × 24 столбца
+function createExtraTable() {
+  const tbody = document.querySelector("#extraTable tbody");
+  for (let i = 0; i < 6; i++) {
+    const row = document.createElement("tr");
+    for (let j = 0; j < 20; j++) {
+      const cell = document.createElement("td");
+      cell.contentEditable = true;
+      cell.setAttribute("draggable", "false");
+      cell.addEventListener("dragstart", e => e.preventDefault());
+      cell.addEventListener("drop", e => e.preventDefault());
+      cell.addEventListener("input", () => {
+        let val = cell.textContent.trim();
+        if (val === "0") cell.textContent = "";
+        else if (!/^\d{1,2}$/.test(val)) {
+          cell.textContent = val.replace(/\D/g, "").slice(0, 2);
+        }
+        saveToLocalStorage();
+      });
+      row.appendChild(cell);
+    }
+    tbody.appendChild(row);
+  }
+}
+createExtraTable();
+// Клики по ячейкам
+document.addEventListener("click", e => {
+  if (e.target.classList.contains("cell")) {
+    const cell = e.target;
+    const row = cell.parentElement;
+
+    showCustomPrompt(input => {
+      if (input === null) return;
+
+      if (input === "0") {
+        cell.textContent = "";
+      } else if (input === "00") {
+        const parts = cell.textContent.split("\\");
+        parts.pop();
+        cell.textContent = parts.join("\\");
+      } else if (/^(П|Л|Х|ХД|В|Ш|М|К|С|О|ХХХ|1)$/.test(input)) {
+        if (!hiddenRoles.has(input)) {
+          cell.textContent = cell.textContent ? cell.textContent + "\\" + input : input;
+        }
+      }
+
+      resetColorClasses(cell);
+      cell.className = "cell";
+      const style = getCellClass(cell.textContent);
+      if (style) cell.classList.add(style);
+
+      updateRowColors(row);
+      saveToLocalStorage();
+    });
+  }
+});
+
+function getTimestamp() {
+  const now = new Date();
+  const pad = n => n.toString().padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+}
+
+function exportData(manual = false) {
+  const data = { count: tableBody.children.length, rows: [], hidden: [...hiddenRoles], extra: [] };
+
+  tableBody.querySelectorAll("tr").forEach(row => {
+    const tds = row.querySelectorAll("td");
+    const role = tds[1].querySelector("select").value;
+    const nights = [...tds].slice(2).map(c => c.textContent);
+    data.rows.push({ role, nights });
+  });
+
+  document.querySelectorAll("#extraTable tr").forEach(row => {
+    const values = [];
+    row.querySelectorAll("td").forEach(cell => {
+      values.push(cell.textContent.trim());
+    });
+    data.extra.push(values);
+  });
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const filename = `mafia_${getTimestamp()}.json`;
+
+  if (manual) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  }
+
+  // Сохраняем в localStorage как резервную копию
+  localStorage.setItem("download_" + filename, JSON.stringify(data));
+  localStorage.setItem("latest", filename);
+}
+
+function saveToLocalStorage() {
+  exportData(false);
+}
+
+function resetTable() {
+  if (confirm("Очистить всю таблицу?")) {
+    const latestKey = localStorage.getItem("latest");
+    if (latestKey) {
+      localStorage.removeItem("download_" + latestKey);
+      localStorage.removeItem("latest");
+    }
+    location.reload();
+  }
+}
+
+function showAllRoles() {
+  document.querySelectorAll(".role-toggle").forEach(span => span.classList.remove("hidden-role"));
+  hiddenRoles.clear();
+}
+
+document.querySelectorAll(".role-toggle").forEach(span => {
+  span.addEventListener("click", () => {
+    const role = span.dataset.role.toUpperCase();
+    if (hiddenRoles.has(role)) {
+      hiddenRoles.delete(role);
+      span.classList.remove("hidden-role");
+    } else {
+      hiddenRoles.add(role);
+      span.classList.add("hidden-role");
+    }
+    saveToLocalStorage();
+  });
+});
+let promptCallback = null;
+function showCustomPrompt(callback) {
+  document.getElementById("promptInput").value = "";
+  document.getElementById("customPrompt").style.display = "flex";
+  promptCallback = callback;
+  setTimeout(() => document.getElementById("promptInput").focus(), 10);
+}
+function submitPrompt() {
+  const value = document.getElementById("promptInput").value.trim().toUpperCase();
+  document.getElementById("customPrompt").style.display = "none";
+  if (promptCallback) promptCallback(value);
+}
+function cancelPrompt() {
+  document.getElementById("customPrompt").style.display = "none";
+  if (promptCallback) promptCallback(null);
+}
+document.getElementById("loadFile").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    loadFromJSON(evt.target.result);
+  };
+  reader.readAsText(file);
+});
+
+function loadFromJSON(jsonText) {
+  try {
+    const data = JSON.parse(jsonText);
+    nightCount = data.rows[0].nights.length;
+    renderNightHeaders();
+    createTable(data.count);
+    data.rows.forEach((r, i) => {
+      const row = tableBody.children[i];
+      row.querySelector("select").value = r.role;
+	const select = row.querySelector("select");
+	const roleCell = select.parentElement;
+	if (select.value === "Л") {
+  roleCell.classList.add("purple");
+	} else {
+  roleCell.classList.remove("purple");
+}  
+      const cells = [...row.querySelectorAll(".cell")];
+      r.nights.forEach((val, j) => {
+        const c = cells[j];
+        c.textContent = val;
+        resetColorClasses(c);
+        c.className = "cell";
+        const style = getCellClass(val);
+        if (style) c.classList.add(style);
+      });
+      updateRowColors(row);
+    });
+
+    if (data.hidden) {
+      hiddenRoles.clear();
+      data.hidden.forEach(role => hiddenRoles.add(role));
+      document.querySelectorAll(".role-toggle").forEach(span => {
+        if (hiddenRoles.has(span.dataset.role.toUpperCase())) {
+          span.classList.add("hidden-role");
+        } else {
+          span.classList.remove("hidden-role");
+        }
+      });
+    }
+
+    if (data.extra) {
+      const tbody = document.querySelector("#extraTable tbody");
+      const rows = tbody.querySelectorAll("tr");
+      rows.forEach((row, i) => {
+        const cells = row.querySelectorAll("td");
+        data.extra[i]?.forEach((val, j) => {
+          cells[j].textContent = val;
+        });
+      });
+    }
+  } catch (err) {
+    alert("Ошибка загрузки данных.");
+  }
+}
+
+// Автозагрузка последней сессии
+window.addEventListener("load", () => {
+  const latestKey = localStorage.getItem("latest");
+  if (latestKey && localStorage.getItem("download_" + latestKey)) {
+    loadFromJSON(localStorage.getItem("download_" + latestKey));
+  }
+});
+function exportToExcel() {
+  const wb = XLSX.utils.book_new();
+
+  // Основная таблица
+  const data1 = [["#", "Роль"]];
+  for (let i = 1; i <= nightCount; i++) {
+    data1[0].push(`Ночь ${i}`);
+  }
+
+  tableBody.querySelectorAll("tr").forEach((row, idx) => {
+    const tds = row.querySelectorAll("td");
+    const role = tds[1].querySelector("select").value;
+    const nights = [...tds].slice(2).map(c => c.textContent);
+    data1.push([idx + 1, role, ...nights]);
+  });
+
+  const ws1 = XLSX.utils.aoa_to_sheet(data1);
+  XLSX.utils.book_append_sheet(wb, ws1, "Таблица");
+
+  // Вторая таблица
+  const extraSheetData = [];
+  document.querySelectorAll("#extraTable tr").forEach(row => {
+    const rowData = [];
+    row.querySelectorAll("td").forEach(cell => {
+      rowData.push(cell.textContent.trim());
+    });
+    extraSheetData.push(rowData);
+  });
+
+  const ws2 = XLSX.utils.aoa_to_sheet(extraSheetData);
+  XLSX.utils.book_append_sheet(wb, ws2, "Доп. Таблица");
+
+  XLSX.writeFile(wb, `mafia_${getTimestamp()}.xlsx`);
+}
+</script>
+<!-- Модальное окно для ввода -->
+<div id="customPrompt" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:white; padding:20px; border-radius:10px; max-width:90%; text-align:center;">
+    <p style="margin-bottom:10px;">П, Л, Х, Хд, В, Ш, М, К, С, О, ХХХ, 1 — фолл<br>Удалить — 0<br>Удалить последнее — 00</p>
+    <input type="text" id="promptInput" style="font-size:18px; padding:6px; width:80%;" />
+    <div style="margin-top:10px;">
+      <button onclick="submitPrompt()" style="padding:6px 12px;">OK</button>
+      <button onclick="cancelPrompt()" style="padding:6px 12px;">Отмена</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
