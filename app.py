@@ -30,6 +30,7 @@ def parse_user_id(init_data):
 
 @app.route('/webapp')
 def webapp():
+    print("\n=== ПОЛНЫЙ URL ЗАПРОСА ===\n", request.url, "\n" + "="*30 + "\n")
     init_data = request.args.get('tgWebAppData')
     print(f"Received init_data: {init_data}")  # Логирование
     
