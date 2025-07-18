@@ -30,26 +30,24 @@ def parse_user_id(init_data):
 
 @app.route('/webapp')
 def webapp():
-    print("\n=== ПОЛНЫЙ URL ЗАПРОСА ===\n", request.url, "\n" + "="*30 + "\n")
     init_data = request.args.get('tgWebAppData')
     print(f"Received init_data: {init_data}")  # Логирование
-    
+
     if not init_data:
         return "❌ Ошибка: не получены данные от Telegram. Запустите через кнопку в боте."
 
     user_id = parse_user_id(init_data)
-    print(f"Parsed user_id: {user_id}")  # Логирование
-    
-    allowed = load_allowed()
-    print(f"Allowed users: {allowed}")  # Логирование
-    
     if not user_id:
         return "❌ Ошибка авторизации: не удалось определить пользователя."
-    
+
+    allowed = load_allowed()
     if user_id not in allowed:
         return f"❌ Доступ запрещён (ваш ID: {user_id}). Обратитесь к администратору."
 
-    return render_template("index.html")
+    return render_template("index_partial.html")  # основной HTML
 
+@app.route("/webview")
+def webview():
+    return render_template("index.html")
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
