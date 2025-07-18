@@ -14,21 +14,30 @@ def save_allowed(allowed):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    print(f"User {user_id} tried to access")  # Логирование
+    
     allowed = load_allowed()
-
-    if user_id not in allowed:
-        await update.message.reply_text("⛔ Доступ запрещён. Обратитесь к администратору.")
+    if not allowed:  # Если файл пуст/не существует
+        print("Warning: allowed.json is empty or not found!")
+        await update.message.reply_text("⚠️ Системная ошибка. Администратору: проверьте allowed.json")
         return
 
+    if user_id not in allowed:
+        await update.message.reply_text(f"⛔ Доступ запрещён (ваш ID: {user_id}). Обратитесь к администратору.")
+        return
+
+    # Добавляем случайный параметр, чтобы избежать кеширования
+    import random
+    webapp_url = f"https://mafia-moderator.onrender.com/webapp?r={random.randint(1,10000)}"
+    
     keyboard = [[
-        InlineKeyboardButton("Открыть таблицу", web_app=WebAppInfo(url="https://mafia-moderator.onrender.com/webapp"))  # ⚠️ Укажи HTTPS-ссылку
+        InlineKeyboardButton("Открыть таблицу", web_app=WebAppInfo(url=webapp_url))
     ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
     await update.message.reply_text("Добро пожаловать!", reply_markup=reply_markup)
 
 async def grant(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID:
+    if update.effective_user.id != 7355212004:
         await update.message.reply_text("⛔ Только админ может это делать.")
         return
 
@@ -43,7 +52,7 @@ async def grant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Доступ выдан для {user_id}")
 
 async def revoke(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID:
+    if update.effective_user.id != 7355212004:
         await update.message.reply_text("⛔ Только админ может это делать.")
         return
 

@@ -8,27 +8,46 @@ def load_allowed():
     try:
         with open("allowed.json", "r") as f:
             data = json.load(f)
+            if not data:  # Если файл пуст
+                print("Error: allowed.json is empty!")
+                return set()
             return set(data) if isinstance(data, list) else {data}
-    except:
+    except Exception as e:
+        print(f"Error loading allowed.json: {str(e)}")
         return set()
 
 def parse_user_id(init_data):
-    # распарсить строку initData
-    data = urllib.parse.parse_qs(init_data)
-    user_json = data.get("user", [None])[0]
-    if user_json:
-        user = json.loads(user_json)
-        return user.get("id")
-    return None
+    try:
+        # Новый метод парсинга для Telegram WebApp
+        from urllib.parse import parse_qs
+        params = parse_qs(init_data)
+        if 'user' not in params:
+            return None
+            
+        user = json.loads(params['user'][0])
+        return user.get('id')
+    except Exception as e:
+        print(f"Error parsing init_data: {str(e)}")
+        return None
 
 @app.route('/webapp')
 def webapp():
     init_data = request.args.get('tgWebAppData')
+    print(f"Received init_data: {init_data}")  # Логирование
+    
     if not init_data:
-        return "❌ Доступ запрещён. Запустите через Telegram /start."
+        return "❌ Ошибка: не получены данные от Telegram. Запустите через кнопку в боте."
 
     user_id = parse_user_id(init_data)
-    if not user_id or user_id not in load_allowed():
-        return "❌ Доступ запрещён. Запустите через Telegram /start."
+    print(f"Parsed user_id: {user_id}")  # Логирование
+    
+    allowed = load_allowed()
+    print(f"Allowed users: {allowed}")  # Логирование
+    
+    if not user_id:
+        return "❌ Ошибка авторизации: не удалось определить пользователя."
+    
+    if user_id not in allowed:
+        return f"❌ Доступ запрещён (ваш ID: {user_id}). Обратитесь к администратору."
 
     return render_template("index.html")
