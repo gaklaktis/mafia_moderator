@@ -28,7 +28,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Добавляем случайный параметр, чтобы избежать кеширования
     import random
-    webapp_url = f"https://mafia-moderator.onrender.com/webapp?r={random.randint(1,10000)}"
+    webapp_url = f"https://mafia-moderator.onrender.com/webview"
     
     keyboard = [[
         InlineKeyboardButton("Открыть таблицу", web_app=WebAppInfo(url=webapp_url))
