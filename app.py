@@ -44,10 +44,10 @@ def webapp():
     if user_id not in allowed:
         return f"❌ Доступ запрещён (ваш ID: {user_id}). Обратитесь к администратору."
 
-    return render_template("index_partial.html")  # основной HTML
+    return render_template("index.html")  # основной HTML
 
 @app.route("/webview")
 def webview():
-    return render_template("index.html")
+    return render_template("index_partial.html")
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
