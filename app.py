@@ -13,10 +13,6 @@ def load_allowed():
     except Exception as e:
         print(f"ERROR reading allowed.json: {e}")  # Лог ошибки
         return set()
-            return set(data) if isinstance(data, list) else {data}
-    except Exception as e:
-        print(f"Error loading allowed.json: {str(e)}")
-        return set()
 
 def parse_user_id(init_data):
     try:
@@ -53,3 +49,6 @@ def webapp():
         return f"❌ Доступ запрещён (ваш ID: {user_id}). Обратитесь к администратору."
 
     return render_template("index.html")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
