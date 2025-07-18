@@ -21,7 +21,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     keyboard = [[
-        InlineKeyboardButton("Открыть таблицу", web_app=WebAppInfo(url="https://yourdomain.com/"))  # ⚠️ Укажи HTTPS-ссылку
+        InlineKeyboardButton("Открыть таблицу", web_app=WebAppInfo(url="https://github.com/gaklaktis/mafia_moderator/tree/master/templates/"))  # ⚠️ Укажи HTTPS-ссылку
     ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
