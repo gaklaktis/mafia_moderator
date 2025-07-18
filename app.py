@@ -1,24 +1,34 @@
-from flask import Flask, request, render_template, abort
+from flask import Flask, request, render_template
 import json
+import urllib.parse
 
 app = Flask(__name__)
 
-def load_allowed_users():
+def load_allowed():
     try:
         with open("allowed.json", "r") as f:
-            return set(json.load(f))
+            data = json.load(f)
+            return set(data) if isinstance(data, list) else {data}
     except:
         return set()
 
-@app.route("/")
-def home():
-    user_id = request.args.get("id")
-    allowed_users = load_allowed_users()
+def parse_user_id(init_data):
+    # распарсить строку initData
+    data = urllib.parse.parse_qs(init_data)
+    user_json = data.get("user", [None])[0]
+    if user_json:
+        user = json.loads(user_json)
+        return user.get("id")
+    return None
 
-    if user_id and user_id.isdigit() and int(user_id) in allowed_users:
-        return render_template("index.html")
-    else:
-        return "<h3>⛔ Доступ запрещён. Запустите через Telegram /start.</h3>"
+@app.route('/webapp')
+def webapp():
+    init_data = request.args.get('tgWebAppData')
+    if not init_data:
+        return "❌ Доступ запрещён. Запустите через Telegram /start."
 
-if __name__ == "__main__":
-    app.run(debug=True)
+    user_id = parse_user_id(init_data)
+    if not user_id or user_id not in load_allowed():
+        return "❌ Доступ запрещён. Запустите через Telegram /start."
+
+    return render_template("index.html")
