@@ -3,6 +3,9 @@ import json
 import urllib.parse
 
 app = Flask(__name__)
+@app.route('/static/audio/<path:filename>')
+def serve_audio(filename):
+    return send_from_directory('static/audio', filename)
 
 def load_allowed():
     try:

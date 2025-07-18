@@ -2,7 +2,24 @@ services:
   - type: web
     name: mafia-moderator
     env: python
-    buildCommand: ""
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     plan: free
     autoDeploy: true
+    # ▼▼▼ Добавьте эти настройки ▼▼▼
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.6  # Укажите вашу версию Python
+    mimeTypes:
+      - extension: .mp3
+        mimeType: audio/mpeg
+      - extension: .js
+        mimeType: application/javascript
+      - extension: .css
+        mimeType: text/css
+      - extension: .png
+        mimeType: image/png
+    staticHeaders:
+      - name: Cache-Control
+        value: "public, max-age=3600"
+    # ▲▲▲ Конец добавления ▲▲▲
