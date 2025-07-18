@@ -8,9 +8,11 @@ def load_allowed():
     try:
         with open("allowed.json", "r") as f:
             data = json.load(f)
-            if not data:  # Если файл пуст
-                print("Error: allowed.json is empty!")
-                return set()
+            print(f"DEBUG: Loaded allowed.json -> {data}")  # Лог
+            return set(data) if isinstance(data, list) else {data}
+    except Exception as e:
+        print(f"ERROR reading allowed.json: {e}")  # Лог ошибки
+        return set()
             return set(data) if isinstance(data, list) else {data}
     except Exception as e:
         print(f"Error loading allowed.json: {str(e)}")
