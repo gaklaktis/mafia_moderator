@@ -21,7 +21,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     keyboard = [[
-        InlineKeyboardButton("Открыть таблицу", web_app=WebAppInfo(url="https://github.com/gaklaktis/mafia_moderator/tree/master/templates/"))  # ⚠️ Укажи HTTPS-ссылку
+        InlineKeyboardButton("Открыть таблицу", web_app=WebAppInfo(url="https://gaklaktis.github.io/mafia_moderator/templates/index.html"))  # ⚠️ Укажи HTTPS-ссылку
     ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -57,7 +57,7 @@ async def revoke(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_allowed(allowed)
     await update.message.reply_text(f"🚫 Доступ отозван у {user_id}")
 
-app = ApplicationBuilder().token("YOUR_BOT_TOKEN").build()
+app = ApplicationBuilder().token("7398262284:AAE0MPai4JPZC1XkdDI14Mrc68Ke1buYEtY").build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("grant", grant))
 app.add_handler(CommandHandler("revoke", revoke))

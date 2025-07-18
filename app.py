@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 def load_allowed_users():
     try:
-        with open("allowed_users.json", "r") as f:
+        with open("allowed.json", "r") as f:
             return set(json.load(f))
     except:
         return set()
